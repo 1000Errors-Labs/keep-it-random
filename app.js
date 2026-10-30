@@ -326,8 +326,9 @@ function injectRef() {
   document.head.appendChild(s);
 
   const nav = [
-    ["ENV","Cycle: SEQ → SYNTH → FX → SEQ"],
-    ["EDIT","On SYNTH: flip Filter ↔ Amp  |  On FX: flip Dly/Verb ↔ Drive/FX"],
+    ["ENV","Cycle main pages: SEQ → SYNTH → FX → SEQ"],
+    ["EDIT or OCT+","On SYNTH: next sub-page (OSC → FILT → AMP)  |  On FX: flip Dly/Verb ↔ Drive/FX"],
+    ["OCT−","On SYNTH: previous sub-page (AMP → FILT → OSC)"],
     ["SEQ","Go to SEQ page directly"],
     ["PLAY","Start / Stop"],
     ["REC","Record-arm current step"],
@@ -338,16 +339,48 @@ function injectRef() {
     ["GLO","Global settings"],
     ["LFO","LFO settings"],
     ["FX","(reserved — use ENV to reach FX page)"],
-    ["OCT−/+","Shift keyboard octave"],
   ];
 
   const pages = [
     ["SEQ","KNOB1-4: step params  SELECT: pattern  ALGORITHM: scale  PRESETS: root"],
-    ["SYNTH FILT","KNOB1: Cutoff  KNOB2: Resonance  KNOB3: Filter Env Amt  KNOB4: Osc2 Level\nSELECT: Osc1 wave  ALGORITHM: Osc2 wave  PRESETS: Osc2 detune"],
-    ["SYNTH AMP","KNOB1: Amp Atk  KNOB2: Amp Dec  KNOB3: Amp Sus  KNOB4: Amp Rel\n(EDIT to swap Filter ADSR: Flt Atk / Dec / Sus / Rel)"],
-    ["FX DLY","KNOB1: Dly Time  KNOB2: Feedback  KNOB3: Dly Mix  KNOB4: Verb Size\nSELECT: Verb Decay  ALGORITHM: Verb Mix  PRESETS: Verb Damp"],
-    ["FX DRIVE","KNOB1: Drive  KNOB2: Drive Mix  KNOB3: Bit Depth  KNOB4: Bit Rate\nSELECT: Bit Mix  ALGORITHM: Chorus Rate  PRESETS: Chorus Mix"],
+    ["SYNTH OSC","KNOB1: Osc1 wave  KNOB2: Osc2 wave  KNOB3: Osc2 detune  KNOB4: Osc2 level"],
+    ["SYNTH FILT","SELECT: Cutoff  ALGO: Resonance  PRESETS: Filter Env Amt\nKNOB1: F.Atk  KNOB2: F.Dec  KNOB3: F.Sus  KNOB4: F.Rel"],
+    ["SYNTH AMP","KNOB1: A.Atk  KNOB2: A.Dec  KNOB3: A.Sus  KNOB4: A.Rel"],
+    ["FX DLY","SELECT: Dly Time  ALGO: Dly Feedback  PRESETS: Dly Mix\nKNOB1: Verb Size  KNOB2: Verb Decay  KNOB3: Verb Mix  KNOB4: Verb Damp"],
+    ["FX DRIVE","SELECT: Drive  ALGO: Drive Mix  PRESETS: Bit Depth\nKNOB1: Bit Rate  KNOB2: Bit Mix  KNOB3: Chorus Rate  KNOB4: Chorus Mix"],
   ];
+
+  // ── Synth page nav buttons (simulate OCT- / OCT+ / ENV button presses) ──
+  function simBtn(bit) {
+    const node = globalThis.__fm1node;
+    if (!node) return;
+    node.port.postMessage({ type: "buttons", mask: 1 << bit });
+    setTimeout(() => node.port.postMessage({ type: "buttons", mask: 0 }), 80);
+  }
+  const BTN_ENV = 2, BTN_EDIT = 4, BTN_OCTDN = 12, BTN_OCTUP = 13;
+
+  function makeNavButtons() {
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:.5rem;margin:1rem 0 0;flex-wrap:wrap;align-items:center";
+    const label = document.createElement("span");
+    label.textContent = "SYNTH pages:";
+    label.style.cssText = "color:var(--muted);font-size:.88rem;font-weight:600";
+    row.appendChild(label);
+    const btns = [
+      ["◄ OSC/AMP (OCT−)", () => simBtn(BTN_OCTDN)],
+      ["FILT/OSC/AMP ► (OCT+)", () => simBtn(BTN_OCTUP)],
+      ["SYNTH (ENV)", () => simBtn(BTN_ENV)],
+    ];
+    for (const [txt, fn] of btns) {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = txt;
+      b.style.cssText = "font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--muted);border-radius:8px;padding:.3em .8em;cursor:pointer;min-height:2.2em;font-size:.85rem";
+      b.addEventListener("click", fn);
+      row.appendChild(b);
+    }
+    const bar = document.querySelector(".bar");
+    if (bar) bar.parentNode.insertBefore(row, bar.nextSibling);
+  }
 
   const html = `<div class="fm1ref">
 <details open>
@@ -397,7 +430,9 @@ ${pages.map(([k,v])=>`<tr><td><span class="tag">${k}</span></td><td>${v.replace(
 // ── Exports called by index.html ──────────────────────────────────────────────
 export function attach({ node: _node, ac }) {
   _ac = ac;
+  globalThis.__fm1node = _node;
   injectRef();
+  makeNavButtons();
 
   // Compressor bus — voices connect here
   _bus = ac.createDynamicsCompressor();
