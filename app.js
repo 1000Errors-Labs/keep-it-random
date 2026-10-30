@@ -512,6 +512,7 @@ ${pages.map(([k,v])=>`<tr><td><span class="tag">${k}</span></td><td>${v.replace(
 
   const main = document.querySelector("main");
   if (main) main.insertAdjacentHTML("beforeend", html);
+  makeNavButtons();
 }
 
 // ── Exports called by index.html ──────────────────────────────────────────────
@@ -519,7 +520,6 @@ export function attach({ node: _node, ac }) {
   _ac = ac;
   globalThis.__fm1node = _node;
   injectRef();
-  makeNavButtons();
 
   // Compressor bus — voices connect here
   _bus = ac.createDynamicsCompressor();
