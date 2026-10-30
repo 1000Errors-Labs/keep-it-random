@@ -573,28 +573,30 @@ function setupSoftLabels(node) {
   const presetsLbl = lbl(105, 249, "", "#e8c96a");
 
   // Page constants mirroring app.c
-  const PAGE = { SEQ:0, DRUM:1, SYNTH_O:2, SYNTH_F:3, SYNTH_A:4, FX_1:5, FX_2:6 };
+  const PAGE = { SEQ:0, DRUM:1, SYNTH_O:2, SYNTH_F:3, SYNTH_A:4, FX_1:5, FX_2:6, AUTO:7 };
 
   const KNOB_MAP = [
     ["Root",    "PitchMin", "PitchMax",  "VelRange"],   // SEQ
-    ["Velocity","Rate",     "",          ""],            // DRUM  (K2=drum clock rate)
+    ["Velocity","Rate",     "",          ""],            // DRUM
     ["Osc1Wave","Osc2Wave", "Osc2Det",   "Osc2Lvl"],    // SYNTH OSC
     ["Cut",     "Res",      "Amt",       "F.Atk"],      // SYNTH FILT
     ["A.Atk",   "A.Dec",    "A.Sus",     "A.Rel"],      // SYNTH AMP
     ["DlyTime", "DlyFback", "DlyMix",    "VerbMix"],    // FX_1
     ["VerbSize","VerbDamp", "Drive",     "DriveMix"],   // FX_2
+    ["Step",    "Value",    "Param",     "Clear"],       // AUTO
   ];
   const ENC_MAP = [
     { sel:"BPM",     algo:"Pattern",  presets:"Scale"   },  // SEQ
     { sel:"Track",   algo:"",         presets:""        },  // DRUM
     { sel:"",        algo:"",         presets:""        },  // SYNTH OSC
-    { sel:"",        algo:"",         presets:""        },  // SYNTH FILT (K1-4 only)
+    { sel:"",        algo:"",         presets:""        },  // SYNTH FILT
     { sel:"",        algo:"",         presets:""        },  // SYNTH AMP
-    { sel:"",        algo:"",         presets:""        },  // FX_1 (K1-4 only)
-    { sel:"",        algo:"",         presets:""        },  // FX_2 (K1-4 only)
+    { sel:"",        algo:"",         presets:""        },  // FX_1
+    { sel:"",        algo:"",         presets:""        },  // FX_2
+    { sel:"Step",    algo:"Value",    presets:"Param"   },  // AUTO
   ];
-  const EDIT_MAP = ["PitchMax","clear trk","next sub▶","next sub▶","next sub▶","flip FX","flip FX"];
-  const REC_MAP  = ["RANDOMISE","RANDOMISE","","","","",""];
+  const EDIT_MAP = ["PitchMax","clear trk","next sub▶","next sub▶","next sub▶","flip FX","flip FX",""];
+  const REC_MAP  = ["RANDOMISE","RANDOMISE","","","","","",""];
 
   let page = PAGE.SEQ;
 
@@ -611,10 +613,14 @@ function setupSoftLabels(node) {
     const onSynth = p >= PAGE.SYNTH_O && p <= PAGE.SYNTH_A;
     octDnLbl.textContent = onSynth ? "◄ prev sub" : "";
     octUpLbl.textContent = onSynth ? "next sub ►" : "";
+    // ARP button label update
+    const arpBtn = document.getElementById('btn-arp');
+    if (arpBtn) arpBtn.querySelector && (arpBtn.querySelector('.btn-label') || arpBtn).title =
+      p === PAGE.AUTO ? "← back" : "→ AUTO";
   }
 
   // Mirror firmware button→page logic so labels update on every press
-  const BTN = { FX:0, ENV:2, LFO:3, EDIT:4, SEQ:9, OCTDN:12, OCTUP:13 };
+  const BTN = { FX:0, ENV:2, LFO:3, EDIT:4, ARP:8, SEQ:9, OCTDN:12, OCTUP:13 };
   let prevMask = 0;
 
   const origPost = node.port.postMessage.bind(node.port);
@@ -628,6 +634,7 @@ function setupSoftLabels(node) {
         if      (bit(BTN.ENV))  page = (page >= PAGE.SYNTH_O && page <= PAGE.SYNTH_A) ? PAGE.SEQ : PAGE.SYNTH_O;
         else if (bit(BTN.LFO))  page = (page === PAGE.DRUM)  ? PAGE.SEQ : PAGE.DRUM;
         else if (bit(BTN.FX))   page = (page === PAGE.FX_1 || page === PAGE.FX_2) ? PAGE.SEQ : PAGE.FX_1;
+        else if (bit(BTN.ARP))  page = (page === PAGE.AUTO) ? PAGE.SYNTH_O : PAGE.AUTO;
         else if (bit(BTN.SEQ))  page = PAGE.SEQ;
         else if (bit(BTN.EDIT) || bit(BTN.OCTUP)) {
           if (page >= PAGE.SYNTH_O && page <= PAGE.SYNTH_A) page = page < PAGE.SYNTH_A ? page + 1 : PAGE.SYNTH_O;
