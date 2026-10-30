@@ -515,11 +515,142 @@ ${pages.map(([k,v])=>`<tr><td><span class="tag">${k}</span></td><td>${v.replace(
   makeNavButtons();
 }
 
+// ── Soft labels: dynamic per-page button + knob labels in the SVG panel ────────
+function setupSoftLabels(node) {
+  const svg = document.getElementById("panel");
+  if (!svg) return;
+
+  const NS = "http://www.w3.org/2000/svg";
+  const g = document.createElementNS(NS, "g");
+  g.id = "fm1-soft-labels";
+  svg.appendChild(g);
+
+  function lbl(x, y, txt, color) {
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("x", x); t.setAttribute("y", y);
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("font-size", "9");
+    t.setAttribute("font-family", '"Barlow Semi Condensed",Barlow,sans-serif');
+    t.setAttribute("font-weight", "600");
+    t.setAttribute("fill", color || "#7eb8f7");
+    t.setAttribute("pointer-events", "none");
+    t.textContent = txt;
+    g.appendChild(t);
+    return t;
+  }
+
+  // Button centres: ROW1 (FX,SEL,ENV,LFO,EDIT,GLO) y=174 h=48; ROW2 (HOME,SAVE,ARP,SEQ,PLAY,REC) y=236 h=48
+  // x positions: 582,645,708,771,834,897 — centre = x+27
+  const R1 = [609,672,735,798,861,924]; // FX SEL ENV LFO EDIT GLO
+  const R2 = [609,672,735,798,861,924]; // HOME SAVE ARP SEQ PLAY REC
+  const ABOVE1 = 170, BELOW2 = 295;    // label y for rows
+
+  // Static labels above ROW1 (all-page functions)
+  lbl(R1[0], ABOVE1, "→ FX page");
+  lbl(R1[2], ABOVE1, "→ SYNTH");
+  lbl(R1[3], ABOVE1, "→ DRUM");
+
+  // Static labels below ROW2
+  lbl(R2[2], BELOW2, "MUTE");          // ARP
+  lbl(R2[3], BELOW2, "→ SEQ+RST");    // SEQ
+
+  // Dynamic: EDIT (above ROW1) + REC (below ROW2) change per page
+  const editLbl = lbl(R1[4], ABOVE1, "");
+  const recLbl  = lbl(R2[5], BELOW2, "");
+
+  // OCT-/OCT+ labels below (y=268 h=38 → bottom=306, centre x=113/211)
+  const octDnLbl = lbl(113, 322, "");
+  const octUpLbl = lbl(211, 322, "");
+
+  // Dynamic knob sub-labels (below each knob)
+  // KNOB1-4 centre: x=610+i*104, y=100 r=22 → below at y=138
+  const KNOB_X = [610, 714, 818, 922];
+  const knobLbls = KNOB_X.map(x => lbl(x, 138, "", "#e8c96a"));
+
+  // Left encoder sub-labels (below): SELECT(215,100)→140, ALGO(215,205)→249, PRESETS(105,205)→249
+  const selLbl     = lbl(215, 140, "", "#e8c96a");
+  const algoLbl    = lbl(215, 249, "", "#e8c96a");
+  const presetsLbl = lbl(105, 249, "", "#e8c96a");
+
+  // Page constants mirroring app.c
+  const PAGE = { SEQ:0, DRUM:1, SYNTH_O:2, SYNTH_F:3, SYNTH_A:4, FX_1:5, FX_2:6 };
+
+  const KNOB_MAP = [
+    ["Root",    "PitchMin", "PitchMax",  "VelRange"],   // SEQ
+    ["Velocity","",         "",          ""],            // DRUM
+    ["Osc1Wave","Osc2Wave", "Osc2Det",   "Osc2Lvl"],    // SYNTH OSC
+    ["F.Atk",   "F.Dec",    "F.Sus",     "F.Rel"],      // SYNTH FILT
+    ["A.Atk",   "A.Dec",    "A.Sus",     "A.Rel"],      // SYNTH AMP
+    ["VerbSize","VerbDec",  "VerbMix",   "VerbDamp"],   // FX DLY
+    ["BitRate", "BitMix",   "ChorRate",  "ChorMix"],    // FX DRIVE
+  ];
+  const ENC_MAP = [
+    { sel:"BPM",     algo:"Pattern",  presets:"Scale"   },  // SEQ
+    { sel:"Track",   algo:"",         presets:""        },  // DRUM
+    { sel:"",        algo:"",         presets:""        },  // SYNTH OSC
+    { sel:"Cutoff",  algo:"Resonance",presets:"FiltAmt" },  // SYNTH FILT
+    { sel:"",        algo:"",         presets:""        },  // SYNTH AMP
+    { sel:"DlyTime", algo:"DlyFback", presets:"DlyMix"  },  // FX DLY
+    { sel:"Drive",   algo:"DriveMix", presets:"BitDepth"},  // FX DRIVE
+  ];
+  const EDIT_MAP = ["PitchMax","clear trk","next sub▶","next sub▶","next sub▶","flip FX","flip FX"];
+  const REC_MAP  = ["RANDOMISE","RANDOMISE","","","","",""];
+
+  let page = PAGE.SEQ;
+
+  function refresh(p) {
+    page = p;
+    const kl = KNOB_MAP[p] || [];
+    knobLbls.forEach((t, i) => { t.textContent = kl[i] || ""; });
+    const el = ENC_MAP[p] || {};
+    selLbl.textContent     = el.sel     || "";
+    algoLbl.textContent    = el.algo    || "";
+    presetsLbl.textContent = el.presets || "";
+    editLbl.textContent = EDIT_MAP[p] || "";
+    recLbl.textContent  = REC_MAP[p]  || "";
+    const onSynth = p >= PAGE.SYNTH_O && p <= PAGE.SYNTH_A;
+    octDnLbl.textContent = onSynth ? "◄ prev sub" : "";
+    octUpLbl.textContent = onSynth ? "next sub ►" : "";
+  }
+
+  // Mirror firmware button→page logic so labels update on every press
+  const BTN = { FX:0, ENV:2, LFO:3, EDIT:4, SEQ:9, OCTDN:12, OCTUP:13 };
+  let prevMask = 0;
+
+  const origPost = node.port.postMessage.bind(node.port);
+  node.port.postMessage = function(msg) {
+    if (msg && msg.type === "buttons") {
+      const mask = msg.mask >>> 0;
+      const pressed = mask & ~prevMask;
+      prevMask = mask;
+      if (pressed) {
+        const bit = b => !!(pressed & (1 << b));
+        if      (bit(BTN.ENV))  page = (page >= PAGE.SYNTH_O && page <= PAGE.SYNTH_A) ? PAGE.SEQ : PAGE.SYNTH_O;
+        else if (bit(BTN.LFO))  page = (page === PAGE.DRUM)  ? PAGE.SEQ : PAGE.DRUM;
+        else if (bit(BTN.FX))   page = (page === PAGE.FX_1 || page === PAGE.FX_2) ? PAGE.SEQ : PAGE.FX_1;
+        else if (bit(BTN.SEQ))  page = PAGE.SEQ;
+        else if (bit(BTN.EDIT) || bit(BTN.OCTUP)) {
+          if (page >= PAGE.SYNTH_O && page <= PAGE.SYNTH_A) page = page < PAGE.SYNTH_A ? page + 1 : PAGE.SYNTH_O;
+          else if (page === PAGE.FX_1) page = PAGE.FX_2;
+          else if (page === PAGE.FX_2) page = PAGE.FX_1;
+        } else if (bit(BTN.OCTDN)) {
+          if (page >= PAGE.SYNTH_O && page <= PAGE.SYNTH_A) page = page > PAGE.SYNTH_O ? page - 1 : PAGE.SYNTH_A;
+        }
+        refresh(page);
+      }
+    }
+    origPost(msg);
+  };
+
+  refresh(page);
+}
+
 // ── Exports called by index.html ──────────────────────────────────────────────
 export function attach({ node: _node, ac }) {
   _ac = ac;
   globalThis.__fm1node = _node;
   injectRef();
+  setupSoftLabels(_node);
 
   // Compressor bus — voices connect here
   _bus = ac.createDynamicsCompressor();
