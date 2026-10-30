@@ -577,21 +577,21 @@ function setupSoftLabels(node) {
 
   const KNOB_MAP = [
     ["Root",    "PitchMin", "PitchMax",  "VelRange"],   // SEQ
-    ["Velocity","PatLen",   "",          ""],            // DRUM
+    ["Velocity","Rate",     "",          ""],            // DRUM  (K2=drum clock rate)
     ["Osc1Wave","Osc2Wave", "Osc2Det",   "Osc2Lvl"],    // SYNTH OSC
-    ["F.Atk",   "F.Dec",    "F.Sus",     "F.Rel"],      // SYNTH FILT
+    ["Cut",     "Res",      "Amt",       "F.Atk"],      // SYNTH FILT
     ["A.Atk",   "A.Dec",    "A.Sus",     "A.Rel"],      // SYNTH AMP
-    ["VerbSize","VerbDec",  "VerbMix",   "VerbDamp"],   // FX DLY
-    ["BitRate", "BitMix",   "ChorRate",  "ChorMix"],    // FX DRIVE
+    ["DlyTime", "DlyFback", "DlyMix",    "VerbMix"],    // FX_1
+    ["VerbSize","VerbDamp", "Drive",     "DriveMix"],   // FX_2
   ];
   const ENC_MAP = [
     { sel:"BPM",     algo:"Pattern",  presets:"Scale"   },  // SEQ
     { sel:"Track",   algo:"",         presets:""        },  // DRUM
     { sel:"",        algo:"",         presets:""        },  // SYNTH OSC
-    { sel:"Cutoff",  algo:"Resonance",presets:"FiltAmt" },  // SYNTH FILT
+    { sel:"",        algo:"",         presets:""        },  // SYNTH FILT (K1-4 only)
     { sel:"",        algo:"",         presets:""        },  // SYNTH AMP
-    { sel:"DlyTime", algo:"DlyFback", presets:"DlyMix"  },  // FX DLY
-    { sel:"Drive",   algo:"DriveMix", presets:"BitDepth"},  // FX DRIVE
+    { sel:"",        algo:"",         presets:""        },  // FX_1 (K1-4 only)
+    { sel:"",        algo:"",         presets:""        },  // FX_2 (K1-4 only)
   ];
   const EDIT_MAP = ["PitchMax","clear trk","next sub▶","next sub▶","next sub▶","flip FX","flip FX"];
   const REC_MAP  = ["RANDOMISE","RANDOMISE","","","","",""];
