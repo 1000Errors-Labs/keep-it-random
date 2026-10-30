@@ -1,9 +1,13 @@
 // app.js — polyphonic subtractive synth + FX chain driven by MIDI CC from the FM1 firmware
 //
-// Navigation (ENV button cycles pages, EDIT flips sub-pages):
-//   ENV → SEQ page → SYNTH FILT page → FX DLY page → (back to SEQ)
-//   EDIT on SYNTH → flip FILT ↔ AMP
-//   EDIT on FX    → flip DLY+VERB ↔ DRIVE+FX
+// Navigation (dedicated buttons, all work from any page):
+//   ENV  → SYNTH OSC page (again to return to SEQ)
+//   LFO  → DRUM page       (again to return to SEQ)
+//   FX   → FX DLY page     (again to return to SEQ)
+//   SEQ  → SEQ page + reset sequence
+//   EDIT or OCT+ on SYNTH → next sub-page (OSC → FILT → AMP)
+//   OCT− on SYNTH         → previous sub-page
+//   EDIT on FX            → flip DLY+VERB ↔ DRIVE+FX
 //
 // Synth CCs (firmware → app.js on encoder turns or before first note)
 // FX CCs (same mechanism, CCs 80-93)
@@ -404,19 +408,19 @@ function injectRef() {
   document.head.appendChild(s);
 
   const nav = [
-    ["ENV","Cycle main pages: SEQ → DRUM → SYNTH → FX → SEQ"],
-    ["EDIT or OCT+","On SYNTH: next sub-page (OSC → FILT → AMP)  |  On FX: flip Dly/Verb ↔ Drive/FX"],
-    ["OCT−","On SYNTH: previous sub-page (AMP → FILT → OSC)"],
-    ["SEQ","Go to SEQ page directly"],
+    ["ENV","Go to SYNTH OSC page — press again to return to SEQ"],
+    ["LFO","Go to DRUM page — press again to return to SEQ"],
+    ["FX","Go to FX DLY page — press again to return to SEQ"],
+    ["SEQ","Return to SEQ page from anywhere + reset sequence"],
+    ["EDIT or OCT+","On SYNTH: next sub-page (OSC→FILT→AMP)  |  On FX: flip DLY/VERB↔DRIVE/FX"],
+    ["OCT−","On SYNTH: previous sub-page (AMP→FILT→OSC)"],
     ["PLAY","Start / Stop"],
-    ["REC","Record-arm current step"],
+    ["REC","On SEQ: randomise all  |  On DRUM: randomise active track"],
     ["SAVE","Save to flash"],
     ["HOME","Return to top of sequence"],
-    ["ARP","Toggle arpeggiator"],
+    ["ARP","Toggle mute"],
     ["SEL","Select / confirm"],
     ["GLO","Global settings"],
-    ["LFO","LFO settings"],
-    ["FX","(reserved — use ENV to reach FX page)"],
   ];
 
   const pages = [
@@ -436,19 +440,23 @@ function injectRef() {
     node.port.postMessage({ type: "buttons", mask: 1 << bit });
     setTimeout(() => node.port.postMessage({ type: "buttons", mask: 0 }), 80);
   }
-  const BTN_ENV = 2, BTN_EDIT = 4, BTN_OCTDN = 12, BTN_OCTUP = 13;
+  // B_FX=0, B_SEL=1, B_ENV=2, B_LFO=3, B_EDIT=4, B_SEQ=9, B_OCTDN=12, B_OCTUP=13
+  const BTN_FX = 0, BTN_ENV = 2, BTN_LFO = 3, BTN_EDIT = 4, BTN_SEQ = 9, BTN_OCTDN = 12, BTN_OCTUP = 13;
 
   function makeNavButtons() {
     const row = document.createElement("div");
     row.style.cssText = "display:flex;gap:.5rem;margin:1rem 0 0;flex-wrap:wrap;align-items:center";
     const label = document.createElement("span");
-    label.textContent = "SYNTH pages:";
+    label.textContent = "Page shortcuts:";
     label.style.cssText = "color:var(--muted);font-size:.88rem;font-weight:600";
     row.appendChild(label);
     const btns = [
-      ["◄ OSC/AMP (OCT−)", () => simBtn(BTN_OCTDN)],
-      ["FILT/OSC/AMP ► (OCT+)", () => simBtn(BTN_OCTUP)],
-      ["SYNTH (ENV)", () => simBtn(BTN_ENV)],
+      ["SYNTH (ENV)",      () => simBtn(BTN_ENV)],
+      ["DRUM (LFO)",       () => simBtn(BTN_LFO)],
+      ["FX (FX)",          () => simBtn(BTN_FX)],
+      ["SEQ (SEQ)",        () => simBtn(BTN_SEQ)],
+      ["◄ sub (OCT−)",     () => simBtn(BTN_OCTDN)],
+      ["sub ► (OCT+)",     () => simBtn(BTN_OCTUP)],
     ];
     for (const [txt, fn] of btns) {
       const b = document.createElement("button");
