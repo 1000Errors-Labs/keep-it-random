@@ -613,10 +613,6 @@ function setupSoftLabels(node) {
     const onSynth = p >= PAGE.SYNTH_O && p <= PAGE.SYNTH_A;
     octDnLbl.textContent = onSynth ? "◄ prev sub" : "";
     octUpLbl.textContent = onSynth ? "next sub ►" : "";
-    // ARP button label update
-    const arpBtn = document.getElementById('btn-arp');
-    if (arpBtn) arpBtn.querySelector && (arpBtn.querySelector('.btn-label') || arpBtn).title =
-      p === PAGE.AUTO ? "← back" : "→ AUTO";
   }
 
   // Mirror firmware button→page logic so labels update on every press
