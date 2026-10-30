@@ -425,7 +425,7 @@ function injectRef() {
 
   const pages = [
     ["SEQ","White keys: toggle steps  SELECT: BPM  ALGO: Pattern  PRESETS: Scale  KNOB1: Root"],
-    ["DRUM","Black keys: select track  White keys: toggle steps\nSELECT: active track  KNOB1: velocity  REC: randomise  EDIT: clear track\nTracks: KICK·SNARE·CLAP·C.HAT·O.HAT·TOM H·TOM M·TOM L"],
+    ["DRUM","Black keys: select track  White keys: toggle steps\nSELECT: active track  KNOB1: velocity  KNOB2: pattern length (4/8/16)  REC: randomise  EDIT: clear track\nTracks: KICK·SNARE·CLAP·C.HAT·O.HAT·TOM H·TOM M·TOM L"],
     ["SYNTH OSC","KNOB1: Osc1 wave  KNOB2: Osc2 wave  KNOB3: Osc2 detune  KNOB4: Osc2 level"],
     ["SYNTH FILT","SELECT: Cutoff  ALGO: Resonance  PRESETS: Filter Env Amt\nKNOB1: F.Atk  KNOB2: F.Dec  KNOB3: F.Sus  KNOB4: F.Rel"],
     ["SYNTH AMP","KNOB1: A.Atk  KNOB2: A.Dec  KNOB3: A.Sus  KNOB4: A.Rel"],
@@ -577,7 +577,7 @@ function setupSoftLabels(node) {
 
   const KNOB_MAP = [
     ["Root",    "PitchMin", "PitchMax",  "VelRange"],   // SEQ
-    ["Velocity","",         "",          ""],            // DRUM
+    ["Velocity","PatLen",   "",          ""],            // DRUM
     ["Osc1Wave","Osc2Wave", "Osc2Det",   "Osc2Lvl"],    // SYNTH OSC
     ["F.Atk",   "F.Dec",    "F.Sus",     "F.Rel"],      // SYNTH FILT
     ["A.Atk",   "A.Dec",    "A.Sus",     "A.Rel"],      // SYNTH AMP
