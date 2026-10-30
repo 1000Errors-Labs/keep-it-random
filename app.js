@@ -117,6 +117,84 @@ function Voice(ac, freq, vel, dest) {
   };
 }
 
+// ── Drum synth (MIDI ch 10, status 0x99) ─────────────────────────────────────
+function drumNote(note, vel, ac, dest) {
+  const now = ac.currentTime;
+  const v   = (vel / 127) * 0.6;
+
+  function env(g, atk, dec, sus) {
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(v, now + atk);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, v * sus), now + atk + dec);
+  }
+
+  if (note === 36) {
+    /* kick — sine with pitch drop */
+    const o = ac.createOscillator(); const g = ac.createGain();
+    o.frequency.setValueAtTime(140, now);
+    o.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+    g.gain.setValueAtTime(v, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+    o.connect(g); g.connect(dest); o.start(now); o.stop(now + 0.5);
+
+  } else if (note === 38) {
+    /* snare — tone + noise */
+    const o = ac.createOscillator(); const go = ac.createGain();
+    const buf = ac.createBuffer(1, ac.sampleRate * 0.2, ac.sampleRate);
+    const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2-1;
+    const ns = ac.createBufferSource(); const gn = ac.createGain();
+    const bp = ac.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 3200; bp.Q.value = 0.5;
+    const sum = ac.createGain(); sum.gain.value = 1;
+    o.frequency.value = 200; go.gain.setValueAtTime(v*0.5, now); go.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+    gn.gain.setValueAtTime(v, now); gn.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+    ns.buffer = buf; ns.connect(bp); bp.connect(gn); gn.connect(sum);
+    o.connect(go); go.connect(sum); sum.connect(dest);
+    o.start(now); o.stop(now + 0.25); ns.start(now);
+
+  } else if (note === 39) {
+    /* clap — noise burst with slight gap */
+    [0, 0.01, 0.02].forEach(dt => {
+      const buf = ac.createBuffer(1, ac.sampleRate * 0.12, ac.sampleRate);
+      const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2-1;
+      const ns = ac.createBufferSource(); const bp = ac.createBiquadFilter();
+      const g  = ac.createGain();
+      bp.type = "bandpass"; bp.frequency.value = 1200; bp.Q.value = 0.8;
+      g.gain.setValueAtTime(v, now+dt); g.gain.exponentialRampToValueAtTime(0.0001, now+dt+0.12);
+      ns.buffer = buf; ns.connect(bp); bp.connect(g); g.connect(dest); ns.start(now+dt);
+    });
+
+  } else if (note === 42) {
+    /* closed hi-hat — high-pass noise, very short */
+    const buf = ac.createBuffer(1, ac.sampleRate * 0.08, ac.sampleRate);
+    const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2-1;
+    const ns = ac.createBufferSource(); const hp = ac.createBiquadFilter();
+    const g  = ac.createGain();
+    hp.type = "highpass"; hp.frequency.value = 7000;
+    g.gain.setValueAtTime(v, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+    ns.buffer = buf; ns.connect(hp); hp.connect(g); g.connect(dest); ns.start(now);
+
+  } else if (note === 46) {
+    /* open hi-hat — same but longer */
+    const buf = ac.createBuffer(1, ac.sampleRate * 0.5, ac.sampleRate);
+    const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2-1;
+    const ns = ac.createBufferSource(); const hp = ac.createBiquadFilter();
+    const g  = ac.createGain();
+    hp.type = "highpass"; hp.frequency.value = 6000;
+    g.gain.setValueAtTime(v, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+    ns.buffer = buf; ns.connect(hp); hp.connect(g); g.connect(dest); ns.start(now);
+
+  } else {
+    /* toms (50=hi, 47=mid, 45=lo) — sine with pitch drop */
+    const freq = note === 50 ? 180 : note === 47 ? 110 : 80;
+    const dur  = note === 50 ? 0.25 : note === 47 ? 0.35 : 0.45;
+    const o = ac.createOscillator(); const g = ac.createGain();
+    o.frequency.setValueAtTime(freq, now);
+    o.frequency.exponentialRampToValueAtTime(freq * 0.3, now + dur * 0.6);
+    g.gain.setValueAtTime(v, now); g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    o.connect(g); g.connect(dest); o.start(now); o.stop(now + dur + 0.05);
+  }
+}
+
 function noteOn(note, vel) {
   if (!_ac || !_bus) return;
   if (voices.size >= MAX_VOICES) {
@@ -326,7 +404,7 @@ function injectRef() {
   document.head.appendChild(s);
 
   const nav = [
-    ["ENV","Cycle main pages: SEQ → SYNTH → FX → SEQ"],
+    ["ENV","Cycle main pages: SEQ → DRUM → SYNTH → FX → SEQ"],
     ["EDIT or OCT+","On SYNTH: next sub-page (OSC → FILT → AMP)  |  On FX: flip Dly/Verb ↔ Drive/FX"],
     ["OCT−","On SYNTH: previous sub-page (AMP → FILT → OSC)"],
     ["SEQ","Go to SEQ page directly"],
@@ -342,7 +420,8 @@ function injectRef() {
   ];
 
   const pages = [
-    ["SEQ","KNOB1-4: step params  SELECT: pattern  ALGORITHM: scale  PRESETS: root"],
+    ["SEQ","White keys: toggle steps  SELECT: BPM  ALGO: Pattern  PRESETS: Scale  KNOB1: Root"],
+    ["DRUM","Black keys: select track  White keys: toggle steps\nSELECT: active track  KNOB1: velocity  REC: randomise  EDIT: clear track\nTracks: KICK·SNARE·CLAP·C.HAT·O.HAT·TOM H·TOM M·TOM L"],
     ["SYNTH OSC","KNOB1: Osc1 wave  KNOB2: Osc2 wave  KNOB3: Osc2 detune  KNOB4: Osc2 level"],
     ["SYNTH FILT","SELECT: Cutoff  ALGO: Resonance  PRESETS: Filter Env Amt\nKNOB1: F.Atk  KNOB2: F.Dec  KNOB3: F.Sus  KNOB4: F.Rel"],
     ["SYNTH AMP","KNOB1: A.Atk  KNOB2: A.Dec  KNOB3: A.Sus  KNOB4: A.Rel"],
@@ -453,7 +532,9 @@ export function message(m) {
   const b1  = (pkt >>> 16) & 0xFF;
   const b2  = (pkt >>> 24) & 0xFF;
   const t   = st & 0xF0;
-  if      (t === 0x90 && b2 > 0) noteOn(b1, b2);
+  const ch = st & 0x0F;
+  if      (t === 0x90 && ch === 9 && b2 > 0) drumNote(b1, b2, _ac, _ac.destination);
+  else if (t === 0x90 && b2 > 0) noteOn(b1, b2);
   else if (t === 0x80 || (t === 0x90 && b2 === 0)) noteOff(b1);
   else if (t === 0xB0) handleCC(b1, b2);
 }
